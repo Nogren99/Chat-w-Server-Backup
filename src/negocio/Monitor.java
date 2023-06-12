@@ -58,11 +58,14 @@ public class Monitor {
 		try {
 			
 			Thread.sleep(3500);
-			if (this.flujoEntrada.available()>0)
+			if (this.flujoEntrada.available()>0) {
+				this.flujoEntrada.readObject();
+				System.out.println("RECIBI LATIDO");
 				this.heartbeats();    //mira esa recursividad papá!!
+			}
 			else
 				this.respaldar();
-		} catch (InterruptedException | IOException e) {
+		} catch (InterruptedException | IOException | ClassNotFoundException e) {
 
 		}
 		

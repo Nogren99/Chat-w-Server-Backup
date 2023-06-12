@@ -91,7 +91,7 @@ public class ControladorServidor implements ActionListener, Runnable {
         		System.out.println("Primario: "+ primario);
 	            Thread hilo = new Thread(Servidor.getInstancia()); //server principal
 	            hilo.start();
-	           monitor.conectarServer("localhost", 1);
+	            
         	} else if (ventana.getRdbtnNewRadioButton_1().isSelected()) {
         		primario=false;
         		System.out.println("Creando server secundario");
@@ -118,8 +118,10 @@ public class ControladorServidor implements ActionListener, Runnable {
     	System.out.println("Es el primario: "+ this.primario);
     	if (!primario)
     		vista.getLblNewLabel().setText("Servidor secundario");
-    	else
+    	else {
+    		monitor.conectarServer("localhost", 1);
     		vista.getLblNewLabel().setText("Servidor principal");
+    	}
     }
     
     public void ventanaChat() {
