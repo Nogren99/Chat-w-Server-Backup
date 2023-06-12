@@ -14,7 +14,8 @@ import modelo.NotificacionCaida;
 public class Monitor {
 	private static Monitor instancia;
 	private Socket socket;
-	private ObjectOutputStream flujoSalida;
+	private Socket socketRespaldo;
+	private ObjectOutputStream flujoSalida,flujoSalidaRespaldo;
 	private ObjectInputStream flujoEntrada;
 	
 	public static Monitor getInstance() {
@@ -27,18 +28,21 @@ public class Monitor {
 	
 	public void conectarServer(String host, int puerto)	{
 		try {
-			Thread.sleep(2500);
 			System.out.println("Conectando monitor al server principal "+ host + "puerto "+ puerto);
 			this.socket= new Socket(host,puerto);
 			System.out.println("Monitor connected");
-			Thread.sleep(200);
+
 			this.flujoSalida = new ObjectOutputStream(socket.getOutputStream());
 			System.out.println("Creamos el flujo de salida");
-			Thread.sleep(200);
+			
+
 			flujoSalida.writeObject(new IdentificadorMonitor());
 			System.out.println("Identificador Monitor enviado");
+			this.socketRespaldo = new Socket("localhost",2);
 			
-		} catch (IOException | InterruptedException e) {
+			flujoSalidaRespaldo = new ObjectOutputStream(socketRespaldo.getOutputStream());
+			System.out.println("SocketREspaldo: "+ socketRespaldo + "\n flujo salida: "+ flujoSalidaRespaldo);
+		} catch (IOException e) {
 
 		}	
 	}
@@ -47,7 +51,8 @@ public class Monitor {
 	public void crearFlujoEntrada() {
 		try {
 			this.flujoEntrada = new ObjectInputStream(socket.getInputStream());
-		} catch (IOException e) {
+			System.out.println(flujoEntrada.readObject().toString());
+		} catch (IOException | ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -55,9 +60,15 @@ public class Monitor {
 	}
 	
 	public void heartbeats() {
-		try {
-			
-			Thread.sleep(3500);
+		Thread receptorHB = new Thread(new ReceptorHeartbeats());
+		receptorHB.start();
+		
+		
+		
+		
+		
+			/*Thread.sleep(10000);
+			System.out.println("Datos available para lectura: "+ this.flujoEntrada.available());
 			if (this.flujoEntrada.available()>0) {
 				this.flujoEntrada.readObject();
 				System.out.println("RECIBI LATIDO");
@@ -67,7 +78,7 @@ public class Monitor {
 				this.respaldar();
 		} catch (InterruptedException | IOException | ClassNotFoundException e) {
 
-		}
+		} */
 		
 		/*Timer timer = new Timer();
 		 TimerTask mainTask = new TimerTask() {
@@ -101,14 +112,32 @@ public class Monitor {
 		
 	}
 	
+	
+	private class ReceptorHeartbeats implements Runnable {
+	    private int i;
+
+	    @Override
+	    public void run() {
+	      /* while (true) {
+	        	System.out.println("Iteracion del receptor");
+	            try {
+	                Object object = flujoEntrada.readObject();
+	                System.out.println("Objeto: " + object.toString());
+	            } catch (IOException | ClassNotFoundException e) {
+	                e.printStackTrace();
+	            }
+	        } */
+	    }
+	}
+	
 	public void pingEcho() {
 		
 		
 	}
 	
-	private void respaldar() {
+	public void respaldar() {
 		try {
-			flujoSalida.writeObject(new NotificacionCaida());
+			this.flujoSalidaRespaldo.writeObject(new NotificacionCaida());
 			System.out.println("Enviando notificacion caida");
 		} catch (IOException e) {
 

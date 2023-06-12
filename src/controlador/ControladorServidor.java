@@ -103,11 +103,14 @@ public class ControladorServidor implements ActionListener, Runnable {
         	}
         	this.vista.cerrar();
         	
-        } 
+        } else if (comando.equalsIgnoreCase("CerrarServer")) {
+        	Monitor.getInstance().respaldar();
+        	this.vista.cerrar();
+        }
         	
         	
           	
-    }
+    } 
     
     public void ventanaEspera() {
     	this.vista.cerrar();
@@ -117,10 +120,10 @@ public class ControladorServidor implements ActionListener, Runnable {
     	
     	System.out.println("Es el primario: "+ this.primario);
     	if (!primario)
-    		vista.getLblNewLabel().setText("Servidor secundario");
+    		vista.getLblNewLabel().setText("Secundario");
     	else {
     		monitor.conectarServer("localhost", 1);
-    		vista.getLblNewLabel().setText("Servidor principal");
+    		vista.getLblNewLabel().setText("Principal");
     	}
     }
     

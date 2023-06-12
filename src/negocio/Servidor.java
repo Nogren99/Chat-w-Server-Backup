@@ -98,8 +98,10 @@ public class Servidor implements Runnable {
         @Override
         public void run() {
             try {
-            	ObjectInputStream flujoEntrada = new ObjectInputStream(cliente.getInputStream());
-        		ObjectOutputStream flujoSalida = new ObjectOutputStream(cliente.getOutputStream());
+            	
+            	ObjectOutputStream flujoSalida = new ObjectOutputStream(cliente.getOutputStream());
+            	ObjectInputStream flujoEntrada = new ObjectInputStream(cliente.getInputStream());   
+            	
             	while (true) {	
             		
                     Object object = flujoEntrada.readObject();
@@ -212,8 +214,10 @@ public class Servidor implements Runnable {
                         flujoSalida.writeObject(Servidor.getInstancia().getClientes());
                     	  
                       }else if (object instanceof IdentificadorMonitor){
-                    	  socketMonitor = cliente;    
-                    	  Monitor.getInstance().crearFlujoEntrada();
+                    	  socketMonitor = cliente;   
+                    	  flujoSalida = new ObjectOutputStream(socketMonitor.getOutputStream());
+                    	  flujoSalida.writeObject("basurita");
+                    	 // Monitor.getInstance().crearFlujoEntrada();
                     	  Thread hilo = new Thread(new enviadorHeartBeats(socketMonitor));
                     	  hilo.start();
                       } else {
@@ -239,13 +243,13 @@ public class Servidor implements Runnable {
     	}
 
 		public void run() {
-				
+			int i=0;
 			while(true) {
 				try {
 					ObjectOutputStream flujo = new ObjectOutputStream(socketMonitor.getOutputStream());
 					flujo.writeObject(new HeartBeat());
 					Thread.sleep(3000);
-					System.out.println("PUM");
+					System.out.println("TUC TUC "+ ++i);
 				} catch (IOException | InterruptedException e) {
 
 				}
