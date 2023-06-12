@@ -31,6 +31,7 @@ public class ControladorServidor implements ActionListener, Runnable {
     private static ControladorServidor instancia;
     private Thread comunicacion;
     private Monitor monitor;
+    private boolean primario;
 
     
     public static ControladorServidor getInstancia() {
@@ -68,7 +69,7 @@ public class ControladorServidor implements ActionListener, Runnable {
         String comando = e.getActionCommand();
        
         if (comando.equalsIgnoreCase("Iniciar Sesión")) {
-        	this.monitor= new Monitor();
+        	this.monitor= Monitor.getInstance();
         	Inicio ventana = (Inicio) this.vista;
         	
         	//Ingreso datos del servidor
@@ -86,12 +87,17 @@ public class ControladorServidor implements ActionListener, Runnable {
         	//JRadioButton selectedButton = (JRadioButton) ventana.getButtonGroup().getSelection();
         	if (ventana.getRdbtnNewRadioButton().isSelected()) {
         		System.out.println("Creando server principal");
+        		primario=true;
+        		System.out.println("Primario: "+ primario);
 	            Thread hilo = new Thread(Servidor.getInstancia()); //server principal
 	            hilo.start();
+	           monitor.conectarServer("localhost", 1);
         	} else if (ventana.getRdbtnNewRadioButton_1().isSelected()) {
+        		primario=false;
         		System.out.println("Creando server secundario");
         		Thread hiloSecundario = new Thread(ServerRespaldo.getInstancia());
         		hiloSecundario.start();
+        		
         	} else {
         		System.out.println("Validar ");
         	}
@@ -105,7 +111,15 @@ public class ControladorServidor implements ActionListener, Runnable {
     
     public void ventanaEspera() {
     	this.vista.cerrar();
+    	
     	this.setVista(new SalaDeEspera());
+    	SalaDeEspera vista = (SalaDeEspera) this.vista;
+    	
+    	System.out.println("Es el primario: "+ this.primario);
+    	if (!primario)
+    		vista.getLblNewLabel().setText("Servidor secundario");
+    	else
+    		vista.getLblNewLabel().setText("Servidor principal");
     }
     
     public void ventanaChat() {

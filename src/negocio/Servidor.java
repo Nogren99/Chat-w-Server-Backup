@@ -21,6 +21,8 @@ import modelo.ActualizarLista;
 import modelo.ClienteNoDisponible;
 import modelo.ConexionTerminada;
 import modelo.ConfirmacionSolicitud;
+import modelo.HeartBeat;
+import modelo.IdentificadorMonitor;
 import modelo.Mensaje;
 import modelo.MensajeCliente;
 import modelo.NotificacionCaida;
@@ -37,6 +39,7 @@ public class Servidor implements Runnable {
     private boolean activo=true;
     private ServerSocket socketServer;
     private Socket socket;
+    private Socket socketMonitor;
     private PrintWriter out;
     private BufferedReader in;
     private InputStreamReader inSocket;
@@ -71,15 +74,16 @@ public class Servidor implements Runnable {
 				System.out.println("Servidor iniciado. Puerto: " + user.getPuerto());
 				controlador.getInstancia().ventanaEspera();
 				while (true) {
+					System.out.println("Esperando conexion");
 					socket = socketServer.accept();
+					System.out.println("Socket aceptado");
 					sockets.add(socket);
 					Thread clientThread = new Thread(new EscucharCliente(socket));
 					threads.add(clientThread);
 	                clientThread.start();
 				}
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.out.println("Excepcion: "+ e.getMessage());
 			}
            
     }
@@ -207,6 +211,11 @@ public class Servidor implements Runnable {
                       	flujoSalida = new ObjectOutputStream(sockets.get(i).getOutputStream());
                         flujoSalida.writeObject(Servidor.getInstancia().getClientes());
                     	  
+                      }else if (object instanceof IdentificadorMonitor){
+                    	  socketMonitor = cliente;    
+                    	  Monitor.getInstance().crearFlujoEntrada();
+                    	  Thread hilo = new Thread(new enviadorHeartBeats(socketMonitor));
+                    	  hilo.start();
                       } else {
                     	System.out.println(object.toString());
                     }
@@ -220,6 +229,32 @@ public class Servidor implements Runnable {
     }
                
     
+    
+    private class enviadorHeartBeats implements Runnable{
+    	private Socket socketMonitor;
+    	
+    	private enviadorHeartBeats(Socket socket) {
+    		this.socketMonitor=socket;
+    	}
+
+		public void run() {
+						
+			while(true) {
+				try {
+					ObjectOutputStream flujo = new ObjectOutputStream(socketMonitor.getOutputStream());
+					flujo.writeObject(new HeartBeat());
+					Thread.sleep(3000);
+					System.out.println("PUM");
+				} catch (IOException | InterruptedException e) {
+
+				}
+				
+			}
+			
+		}
+    	
+    	
+    }
 
     public static ControladorServidor getControlador() {
 		return controlador;

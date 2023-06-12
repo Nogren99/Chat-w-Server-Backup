@@ -188,6 +188,7 @@ public class Cliente implements Runnable{
 	        			ControladorCliente.getInstancia().abrirVentanaEspera();       			
 	        		} else if (object instanceof NotificacionCaida){
 	        			this.principalActivo=false;	
+	        			System.out.println("Usuario recibio notificacion de la caida de Troya");
 	        		}else {
 	        			System.out.println(object.toString());
 	        		}

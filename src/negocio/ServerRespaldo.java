@@ -215,11 +215,13 @@ public class ServerRespaldo implements Runnable {
                             flujoSalida.writeObject(ServerRespaldo.getInstancia().getClientes());
                         	  
                           } else if (object instanceof NotificacionCaida){ 
+                        	  System.out.println("Server Respaldo recibio notificacion caida. Notificando usuarios");
                         	  for (int k=0; k < sockets.size() ; k++) { 			
   			                    ObjectOutputStream listaClientes = new ObjectOutputStream(sockets.get(k).getOutputStream());
   			                    listaClientes.writeObject(new NotificacionCaida());
   			                    listaClientes.flush();
                         	  }
+                        	  System.out.println("Usuario notificados de la caida de troya");
   	                		}else {
                         	System.out.println(object.toString());
                         }
