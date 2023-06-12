@@ -23,6 +23,7 @@ import modelo.ConexionTerminada;
 import modelo.ConfirmacionSolicitud;
 import modelo.Mensaje;
 import modelo.MensajeCliente;
+import modelo.NotificacionCaida;
 import modelo.SolicitudMensaje;
 import modelo.Usuario;
 
@@ -33,12 +34,14 @@ public class Servidor implements Runnable {
     private boolean secambio=false;
 
     private Usuario user;
+    private boolean activo=true;
     private ServerSocket socketServer;
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
     private InputStreamReader inSocket;
     private ArrayList<Socket> sockets = new ArrayList<Socket>();
+    private ArrayList<Thread> threads = new ArrayList<Thread>();
     private HashMap<String, Integer> clientes; //Nombre / puerto
 
     private Servidor() {
@@ -71,6 +74,7 @@ public class Servidor implements Runnable {
 					socket = socketServer.accept();
 					sockets.add(socket);
 					Thread clientThread = new Thread(new EscucharCliente(socket));
+					threads.add(clientThread);
 	                clientThread.start();
 				}
 			} catch (IOException e) {
@@ -95,9 +99,11 @@ public class Servidor implements Runnable {
             	while (true) {	
             		
                     Object object = flujoEntrada.readObject();
+                    System.out.println("El servidor principal recibio un objeto");
                     
-                    if (object instanceof MensajeCliente) {
+                    if (object instanceof MensajeCliente) { 
                     	MensajeCliente datos = (MensajeCliente) object;
+                    	ServerRespaldo.getInstancia().addCliente(datos.getName(), datos.getPuerto());
                     	Servidor.getInstancia().addCliente(datos.getName(), datos.getPuerto());
 
 	                		for (int k=0; k < sockets.size() ; k++) { 			
@@ -210,8 +216,10 @@ public class Servidor implements Runnable {
             }
             
         }
+
     }
                
+    
 
     public static ControladorServidor getControlador() {
 		return controlador;

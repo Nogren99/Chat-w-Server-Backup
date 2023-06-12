@@ -20,6 +20,7 @@ import modelo.ConexionTerminada;
 import modelo.ConfirmacionSolicitud;
 import modelo.Mensaje;
 import modelo.MensajeCliente;
+import modelo.NotificacionCaida;
 import modelo.SolicitudMensaje;
 import modelo.Usuario;
 
@@ -29,12 +30,17 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class Cliente implements Runnable{
 	private static Cliente instancia;
+	private boolean principalActivo=true;
     private Socket socket;
+    private Socket socketRespaldo;
     private MensajeCliente paqueteMsj = new MensajeCliente();
     private ObjectOutputStream flujoSalida;
     private ObjectInputStream flujoEntrada;
+    private ObjectOutputStream flujoSalidaRespaldo;
+    private ObjectInputStream flujoEntradaRespaldo;
     private String nombreInterlocutor;
     ObjectOutputStream paqueteDatos;
+    ObjectOutputStream paqueteDatosRespaldo;
     private boolean aceptada = false;
     private boolean estoyEnLlamada=false;
     
@@ -47,7 +53,9 @@ public class Cliente implements Runnable{
     public void conectar(String host, int puerto) { 
         try {
             this.socket = new Socket(host, 1); //acordarse q el server esta harcodeado en 1
+            this.socketRespaldo = new Socket(host,2); //puerto del server respaldo hardcodeado en 2
             paqueteDatos = new ObjectOutputStream(socket.getOutputStream());
+            paqueteDatosRespaldo = new ObjectOutputStream(socketRespaldo.getOutputStream());
             MensajeCliente datos = new MensajeCliente();
             datos.setIp(Usuario.getInstance().getIp());
             datos.setMsj(null);
@@ -55,9 +63,12 @@ public class Cliente implements Runnable{
             datos.setName(Usuario.getInstance().getNombre());
             paqueteDatos.writeObject(datos);
             paqueteDatos.flush();
+            paqueteDatosRespaldo.writeObject(datos);
+            paqueteDatosRespaldo.flush();
             
             System.out.println("Mis datos : Nombre: "+Usuario.getInstance().getNombre()+" socket: "+socket + "histo: "+host+" puerot "+puerto);
             this.flujoEntrada = new ObjectInputStream(socket.getInputStream());
+            this.flujoEntradaRespaldo = new ObjectInputStream(socketRespaldo.getInputStream());
             ControladorCliente.getInstancia().ventanaEspera();//ventana sala de espera con listita
         } catch (IOException e) {
             System.out.println(e.getMessage());
@@ -66,13 +77,17 @@ public class Cliente implements Runnable{
 
     public void enviarMensaje(String mensaje, String nombre, String nombreDestinatario) {
         try {     	
-        	//encriptacion
-    		byte[] textoEncriptado = encriptar("12345678", mensaje, "DES");
+        	
+        	byte[] textoEncriptado = encriptar("12345678", mensaje, "DES");
     		String textoEncriptadoBase64 = Base64.getEncoder().encodeToString(textoEncriptado);
     		textoEncriptado = Base64.getDecoder().decode(textoEncriptadoBase64);
-
-    		paqueteDatos.writeObject(new Mensaje(textoEncriptado,nombre,nombreDestinatario));
-    		paqueteDatos.flush();
+        	if (this.principalActivo) {
+	    		paqueteDatos.writeObject(new Mensaje(textoEncriptado,nombre,nombreDestinatario));
+	    		paqueteDatos.flush();
+        	} else {
+        		paqueteDatosRespaldo.writeObject(new Mensaje(textoEncriptado,nombre,nombreDestinatario));
+        		paqueteDatos.flush();
+        	}
 
     	} catch (Exception e) {
     		// TODO Auto-generated catch block
@@ -119,10 +134,66 @@ public class Cliente implements Runnable{
 	public void run() {
         try {
         	while (true) {
-        		
-        		ObjectInputStream hashMapInputStream = new ObjectInputStream(this.socket.getInputStream());
-        		Object object =   hashMapInputStream.readObject();
-        		
+        		if (this.principalActivo) {
+	        		ObjectInputStream hashMapInputStream = new ObjectInputStream(this.socket.getInputStream());
+	        		Object object =   hashMapInputStream.readObject();		
+	        		if (object.getClass()==HashMap.class) {     //Me llega un hashmap actualizado con todos los usuarios que tiene nuestro sistema para actualizar la lista
+	        			HashMap<String, Integer> clientesRecibidos = (HashMap<String, Integer>) object;	
+		                Iterator<Map.Entry<String, Integer>> iterator = clientesRecibidos.entrySet().iterator();
+		
+		                while (iterator.hasNext()) {
+		                    Map.Entry<String, Integer> entry = iterator.next();
+		                    String nombre = entry.getKey();
+		                    Integer puerto = entry.getValue();
+		                    //System.out.println("Cliente: " + nombre + ", Puerto: " + puerto);
+		                }
+		                ControladorCliente.getInstancia().actualizaLista( (HashMap) clientesRecibidos);
+		                
+	        		} else if (object.getClass()==SolicitudMensaje.class) {   //Me llega una solicitud de chat de otro usuario
+	        			SolicitudMensaje solicitud = (SolicitudMensaje) object;
+	        			if (this.estoyEnLlamada) {
+	        				paqueteDatos.writeObject(new ClienteNoDisponible(solicitud.getNombrePropio()));
+	        			} else {
+		        			int dialogButton = JOptionPane.showConfirmDialog (null, solicitud.getNombrePropio() + " quiere iniciar una conversación contigo. ¿Aceptar?","Solicitud entrante", 0); //0 es si, 1 es no
+		        			if (dialogButton ==0) { // si
+		        				ControladorCliente.getInstancia().setSolicitante(false);
+		        				this.nombreInterlocutor=solicitud.getNombrePropio();
+		        				paqueteDatos.writeObject(new ConfirmacionSolicitud(true,solicitud.getNombrePropio()));    //escribir con este o con flujoSalida???				
+		        				ControladorCliente.getInstancia().ventanaChatSolicitado(solicitud.getNombrePropio()); 
+		        				this.estoyEnLlamada=true;
+		        			} else { // no
+		        				paqueteDatos.writeObject(new ConfirmacionSolicitud(false,solicitud.getNombrePropio()));  //escribir con este o con flujoSalida???	
+		        			}
+	        			}
+	        		} else if (object instanceof Boolean) { //Me llega la confirmación de la solicitud de chat que envié anteriormenta
+	        			boolean bool = (boolean) object;
+	        			if (bool) {
+	        				ControladorCliente.getInstancia().setSolicitante(true);
+	        				this.aceptada=true;
+	        				this.estoyEnLlamada=true;
+	        				ControladorCliente.getInstancia().ventanaChatSolicitante();
+	        			} else {
+	        				JOptionPane.showMessageDialog(null, "Tu solicitud ha sido rechazada :(");
+	        			}
+	        		}else if (object instanceof Mensaje){   //Me llega un mensaje
+	        			Mensaje mensaje = (Mensaje) object;
+	        			//lo desencripto
+	        			String textoOriginal = desencriptar("12345678", mensaje.getMensaje(), "DES");
+	        			ControladorCliente.getInstancia().actualizaChat(mensaje.getNombreMio(), textoOriginal);
+	        			
+	        		} else if (object instanceof ClienteNoDisponible){
+	        			JOptionPane.showMessageDialog(null, "El usuario no está disponible!");
+	        		} else if (object instanceof ConexionTerminada){
+	        			this.estoyEnLlamada=false;
+	        			ControladorCliente.getInstancia().abrirVentanaEspera();       			
+	        		} else if (object instanceof NotificacionCaida){
+	        			this.principalActivo=false;	
+	        		}else {
+	        			System.out.println(object.toString());
+	        		}
+        	} else {
+        		ObjectInputStream hashMapInputStream = new ObjectInputStream(this.socketRespaldo.getInputStream());
+        		Object object =   hashMapInputStream.readObject();		
         		if (object.getClass()==HashMap.class) {     //Me llega un hashmap actualizado con todos los usuarios que tiene nuestro sistema para actualizar la lista
         			HashMap<String, Integer> clientesRecibidos = (HashMap<String, Integer>) object;	
 	                Iterator<Map.Entry<String, Integer>> iterator = clientesRecibidos.entrySet().iterator();
@@ -138,17 +209,17 @@ public class Cliente implements Runnable{
         		} else if (object.getClass()==SolicitudMensaje.class) {   //Me llega una solicitud de chat de otro usuario
         			SolicitudMensaje solicitud = (SolicitudMensaje) object;
         			if (this.estoyEnLlamada) {
-        				paqueteDatos.writeObject(new ClienteNoDisponible(solicitud.getNombrePropio()));
+        				paqueteDatosRespaldo.writeObject(new ClienteNoDisponible(solicitud.getNombrePropio()));
         			} else {
 	        			int dialogButton = JOptionPane.showConfirmDialog (null, solicitud.getNombrePropio() + " quiere iniciar una conversación contigo. ¿Aceptar?","Solicitud entrante", 0); //0 es si, 1 es no
 	        			if (dialogButton ==0) { // si
 	        				ControladorCliente.getInstancia().setSolicitante(false);
 	        				this.nombreInterlocutor=solicitud.getNombrePropio();
-	        				paqueteDatos.writeObject(new ConfirmacionSolicitud(true,solicitud.getNombrePropio()));    //escribir con este o con flujoSalida???				
+	        				paqueteDatosRespaldo.writeObject(new ConfirmacionSolicitud(true,solicitud.getNombrePropio()));    //escribir con este o con flujoSalida???				
 	        				ControladorCliente.getInstancia().ventanaChatSolicitado(solicitud.getNombrePropio()); 
 	        				this.estoyEnLlamada=true;
 	        			} else { // no
-	        				paqueteDatos.writeObject(new ConfirmacionSolicitud(false,solicitud.getNombrePropio()));  //escribir con este o con flujoSalida???	
+	        				paqueteDatosRespaldo.writeObject(new ConfirmacionSolicitud(false,solicitud.getNombrePropio()));  //escribir con este o con flujoSalida???	
 	        			}
         			}
         		} else if (object instanceof Boolean) { //Me llega la confirmación de la solicitud de chat que envié anteriormenta
@@ -175,7 +246,7 @@ public class Cliente implements Runnable{
         		} else {
         			System.out.println(object.toString());
         		}
-        		
+        	}
             }
             
         } catch (ClassNotFoundException e) {

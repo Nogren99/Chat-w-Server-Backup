@@ -5,10 +5,18 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowListener;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.concurrent.TimeUnit;
+
+import javax.swing.ButtonGroup;
+import javax.swing.ButtonModel;
 import javax.swing.JOptionPane;
+import javax.swing.JRadioButton;
 import javax.swing.JTextField;
 import modelo.Usuario;
+import negocio.Monitor;
+import negocio.ServerRespaldo;
 import negocio.Servidor;
 import vista.Ivista;
 import vista.SistemaDeMensajeria;
@@ -22,7 +30,7 @@ public class ControladorServidor implements ActionListener, Runnable {
 	private Ivista vista;
     private static ControladorServidor instancia;
     private Thread comunicacion;
-    
+    private Monitor monitor;
 
     
     public static ControladorServidor getInstancia() {
@@ -54,11 +62,13 @@ public class ControladorServidor implements ActionListener, Runnable {
      *Se ingresa el puerto por pantalla y se toma el ip de quien lo inicia
      *Luego se inicia el hilo correspondiente al servidor
      */
-    @Override
+    @SuppressWarnings("deprecation")
+	@Override
     public void actionPerformed(ActionEvent e) {
         String comando = e.getActionCommand();
        
         if (comando.equalsIgnoreCase("Iniciar Sesión")) {
+        	this.monitor= new Monitor();
         	Inicio ventana = (Inicio) this.vista;
         	
         	//Ingreso datos del servidor
@@ -72,11 +82,25 @@ public class ControladorServidor implements ActionListener, Runnable {
         	System.out.println("Inicio en ip: "+ Usuario.getInstance().getIp() + "y en puerto: "+puerto);
         	
         	//Inicio hilo para que el servidor empieze a escuchar clientes
-            Thread hilo = new Thread(Servidor.getInstancia());
-            hilo.start();
+        	//ButtonGroup selectedGroup = ventana.getButtonGroup();
+        	//JRadioButton selectedButton = (JRadioButton) ventana.getButtonGroup().getSelection();
+        	if (ventana.getRdbtnNewRadioButton().isSelected()) {
+        		System.out.println("Creando server principal");
+	            Thread hilo = new Thread(Servidor.getInstancia()); //server principal
+	            hilo.start();
+        	} else if (ventana.getRdbtnNewRadioButton_1().isSelected()) {
+        		System.out.println("Creando server secundario");
+        		Thread hiloSecundario = new Thread(ServerRespaldo.getInstancia());
+        		hiloSecundario.start();
+        	} else {
+        		System.out.println("Validar ");
+        	}
         	this.vista.cerrar();
         	
         } 
+        	
+        	
+          	
     }
     
     public void ventanaEspera() {
