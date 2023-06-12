@@ -235,10 +235,11 @@ public class Servidor implements Runnable {
     	
     	private enviadorHeartBeats(Socket socket) {
     		this.socketMonitor=socket;
+    		Monitor.getInstance().heartbeats();	
     	}
 
 		public void run() {
-						
+				
 			while(true) {
 				try {
 					ObjectOutputStream flujo = new ObjectOutputStream(socketMonitor.getOutputStream());
