@@ -13,7 +13,6 @@ import java.awt.event.ActionListener;
 import java.awt.CardLayout;
 import java.awt.Font;
 import java.awt.Color;
-import javax.swing.JButton;
 
 public class SalaDeEspera extends JFrame implements Ivista {
 
@@ -27,13 +26,6 @@ public class SalaDeEspera extends JFrame implements Ivista {
 	private JLabel lblNewLabel;
 	private JLabel lblNewLabel_1;
 	private JPanel panel_6;
-	private JPanel panel_11;
-	private JPanel panel_14;
-	private JPanel panel_15;
-	private JButton btnNewButton;
-	private JPanel panel_9;
-	private JPanel panel_10;
-	private ActionListener actionListener;
 
 	/**
 	 * Launch the application.
@@ -96,34 +88,6 @@ public class SalaDeEspera extends JFrame implements Ivista {
 		this.panel_5 = new JPanel();
 		this.panel_5.setBackground(new Color(195, 222, 214));
 		this.panel_1.add(this.panel_5);
-		this.panel_5.setLayout(new GridLayout(3, 3, 0, 0));
-		
-		this.panel_11 = new JPanel();
-		this.panel_11.setBackground(new Color(195, 222, 214));
-		this.panel_11.setForeground(new Color(195, 222, 214));
-		this.panel_5.add(this.panel_11);
-		this.panel_11.setLayout(new BorderLayout(0, 0));
-		
-		this.panel_14 = new JPanel();
-		this.panel_5.add(this.panel_14);
-		this.panel_14.setLayout(new BorderLayout(0, 0));
-		
-		this.btnNewButton = new JButton("Cerrar servidor");
-		this.btnNewButton.setActionCommand("CerrarServer");
-		this.btnNewButton.setFont(new Font("Segoe UI Semilight", Font.BOLD, 11));
-		this.panel_14.add(this.btnNewButton, BorderLayout.CENTER);
-		
-		this.panel_9 = new JPanel();
-		this.panel_9.setBackground(new Color(195, 222, 214));
-		this.panel_14.add(this.panel_9, BorderLayout.WEST);
-		
-		this.panel_10 = new JPanel();
-		this.panel_10.setBackground(new Color(195, 222, 214));
-		this.panel_14.add(this.panel_10, BorderLayout.EAST);
-		
-		this.panel_15 = new JPanel();
-		this.panel_15.setBackground(new Color(195, 222, 214));
-		this.panel_5.add(this.panel_15);
 		
 		this.panel_2 = new JPanel();
 		this.panel_2.setBackground(new Color(195, 222, 214));
@@ -136,16 +100,6 @@ public class SalaDeEspera extends JFrame implements Ivista {
 		
 	}
 
-	
-	
-	public JLabel getLblNewLabel() {
-		return lblNewLabel;
-	}
-
-	public JButton getBtnNewButton() {
-		return btnNewButton;
-	}
-
 	@Override
 	public void mostrar() {
 		this.setVisible(true);
@@ -154,8 +108,8 @@ public class SalaDeEspera extends JFrame implements Ivista {
 
 	@Override
 	public void setActionListener(ActionListener actionListener) {
-		this.btnNewButton.addActionListener(actionListener);
-		this.actionListener=actionListener;	
+		// TODO Auto-generated method stub
+		
 	}
 
 }

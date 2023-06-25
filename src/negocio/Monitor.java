@@ -1,148 +1,80 @@
 package negocio;
 
+
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import modelo.HeartBeat;
-import modelo.IdentificadorMonitor;
-import modelo.NotificacionCaida;
-
 public class Monitor {
-	private static Monitor instancia;
-	private Socket socket;
-	private Socket socketRespaldo;
-	private ObjectOutputStream flujoSalida,flujoSalidaRespaldo;
-	private ObjectInputStream flujoEntrada;
-	
-	public static Monitor getInstance() {
-		if (instancia==null) {
-			System.out.println("Creando monitor");
-			instancia = new Monitor();
-		}
-		return instancia;
-	}
-	
-	public void conectarServer(String host, int puerto)	{
-		try {
-			System.out.println("Conectando monitor al server principal "+ host + "puerto "+ puerto);
-			this.socket= new Socket(host,puerto);
-			System.out.println("Monitor connected");
+    private boolean primarioVivo;
+    private int puerto;
+    private Timer heartbeatTimer;
+    private Socket serverSecundario;
 
-			this.flujoSalida = new ObjectOutputStream(socket.getOutputStream());
-			System.out.println("Creamos el flujo de salida");
-			
+    public Monitor(int puerto) {
+        this.primarioVivo = true;
+        this.heartbeatTimer = new Timer();
+        this.puerto = puerto;
+        this.serverSecundario = null;
+    }
 
-			flujoSalida.writeObject(new IdentificadorMonitor());
-			System.out.println("Identificador Monitor enviado");
-			this.socketRespaldo = new Socket("localhost",2);
-			
-			flujoSalidaRespaldo = new ObjectOutputStream(socketRespaldo.getOutputStream());
-			System.out.println("SocketREspaldo: "+ socketRespaldo + "\n flujo salida: "+ flujoSalidaRespaldo);
-		} catch (IOException e) {
+    public void conectarServerSecundario(String ip, int puerto) {
+        while (this.serverSecundario == null) {
+            try {
+                Thread.sleep(1000);
+                this.serverSecundario = new Socket(ip, puerto);
+                System.out.println("Conexion establecida con el servidor secundario.");
+            } catch (IOException e) {
+                System.out.println("No se pudo conectar con el servidor secundario...");
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
-		}	
-	}
-	
-	
-	public void crearFlujoEntrada() {
-		try {
-			this.flujoEntrada = new ObjectInputStream(socket.getInputStream());
-			System.out.println(flujoEntrada.readObject().toString());
-		} catch (IOException | ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		System.out.println("Creamos el flujo de entrada.");
-	}
-	
-	public void heartbeats() {
-		Thread receptorHB = new Thread(new ReceptorHeartbeats());
-		receptorHB.start();
-		
-		
-		
-		
-		
-			/*Thread.sleep(10000);
-			System.out.println("Datos available para lectura: "+ this.flujoEntrada.available());
-			if (this.flujoEntrada.available()>0) {
-				this.flujoEntrada.readObject();
-				System.out.println("RECIBI LATIDO");
-				this.heartbeats();    //mira esa recursividad papá!!
-			}
-			else
-				this.respaldar();
-		} catch (InterruptedException | IOException | ClassNotFoundException e) {
+    public void empezarMonitoreo() throws IOException {
+        ServerSocket conexionPrimario = new ServerSocket(this.puerto);
+        while (primarioVivo) {
+            this.heartbeatTimer.schedule(new HeartbeatTask(), 3000);
 
-		} */
-		
-		/*Timer timer = new Timer();
-		 TimerTask mainTask = new TimerTask() {
-	            @Override
-	            public void run() {
-	                try {
-						Object object = flujoEntrada.readObject();
-						if (object instanceof HeartBeat) {
-							System.out.println("HeartBeat recibido");
-						} else
-							Thread.sleep(5000); //tardar mas hara que se muera el timer y nos da a entender q se murio el server
-					} catch (ClassNotFoundException | IOException | InterruptedException e) {
+            conexionPrimario.accept();
+            this.recibirHeartbeat();
+        }
+        System.out.println("Primario no vivo");
+        conexionPrimario.accept();
+        primarioVivo = true;
+        PrintWriter salida = new PrintWriter(this.serverSecundario.getOutputStream(), true);
+        salida.println("reiniciar primario");
+        conexionPrimario.close();
+        this.empezarMonitoreo();
+    }
 
-					}
-	            }
-	      };
-	      
-	      
-	      TimerTask alternateTask = new TimerTask() {
-	            @Override
-	            public void run() {
-	                respaldar();
-	            }
-	        };
-	        
-	        
-	        timer.schedule(mainTask, 5000);
-	        timer.schedule(alternateTask, 10000);*/
-		
-		
-		
-	}
-	
-	
-	private class ReceptorHeartbeats implements Runnable {
-	    private int i;
+    public void recibirHeartbeat() {
+        this.heartbeatTimer.cancel();
+        this.heartbeatTimer = new Timer();
+        System.out.println("Se recibio latido del servidor primario.");
+    }
 
-	    @Override
-	    public void run() {
-	      /* while (true) {
-	        	System.out.println("Iteracion del receptor");
-	            try {
-	                Object object = flujoEntrada.readObject();
-	                System.out.println("Objeto: " + object.toString());
-	            } catch (IOException | ClassNotFoundException e) {
-	                e.printStackTrace();
-	            }
-	        } */
-	    }
-	}
-	
-	public void pingEcho() {
-		
-		
-	}
-	
-	public void respaldar() {
-		try {
-			this.flujoSalidaRespaldo.writeObject(new NotificacionCaida());
-			System.out.println("Enviando notificacion caida");
-		} catch (IOException e) {
+    public void activarSecundario() {
+        System.out.println("No se recibio latido del servidor primario en los ultimos 3 segs.");
+        System.out.println("Activando servidor secundario...");
+        try {
+            PrintWriter salida = new PrintWriter(this.serverSecundario.getOutputStream(), true);
+            salida.println("activar secundario");
+        } catch (IOException e) {
+            System.out.println("No se pudo activar el servidor secundario.");
+        }
+    }
 
-		}
-		
-	}
+    private class HeartbeatTask extends TimerTask {
+        @Override
+        public void run() {
+            primarioVivo = false;
+            activarSecundario();
+        }
+    }
 
 }

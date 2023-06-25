@@ -14,8 +14,10 @@ import javax.swing.JTextField;
 import javax.swing.JButton;
 import java.awt.Color;
 import java.awt.Font;
+import javax.swing.JRadioButton;
+import javax.swing.ButtonGroup;
 
-public class Inicio extends JFrame implements Ivista {
+public class InicioNuevo extends JFrame implements Ivista {
 
 	private JPanel contentPane;
 	private ActionListener actionListener;
@@ -45,6 +47,11 @@ public class Inicio extends JFrame implements Ivista {
 	private JPanel panel_20;
 	private JLabel lblNewLabel_2;
 	private JTextField textField_1;
+	private JPanel panel_21;
+	private JPanel panel_22;
+	private JRadioButton rdbtnNewRadioButton;
+	private JRadioButton rdbtnNewRadioButton_1;
+	private final ButtonGroup buttonGroup = new ButtonGroup();
 
 	public static void main(String[] args) {
 		EventQueue.invokeLater(new Runnable() {
@@ -62,7 +69,7 @@ public class Inicio extends JFrame implements Ivista {
 	/**
 	 * Create the frame.
 	 */
-	public Inicio() {
+	public InicioNuevo() {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 450, 300);
 		contentPane = new JPanel();
@@ -143,6 +150,26 @@ public class Inicio extends JFrame implements Ivista {
 		this.panel_6 = new JPanel();
 		this.panel_6.setBackground(new Color(195, 222, 214));
 		this.panel_2.add(this.panel_6);
+		this.panel_6.setLayout(new GridLayout(0, 2, 0, 0));
+		
+		this.panel_21 = new JPanel();
+		this.panel_21.setBackground(new Color(195, 222, 214));
+		this.panel_6.add(this.panel_21);
+		this.panel_21.setLayout(new BorderLayout(0, 0));
+		
+		this.rdbtnNewRadioButton = new JRadioButton("Principal");
+		buttonGroup.add(this.rdbtnNewRadioButton);
+		this.rdbtnNewRadioButton.setBackground(new Color(195, 222, 214));
+		this.panel_21.add(this.rdbtnNewRadioButton);
+		
+		this.panel_22 = new JPanel();
+		this.panel_6.add(this.panel_22);
+		this.panel_22.setLayout(new BorderLayout(0, 0));
+		
+		this.rdbtnNewRadioButton_1 = new JRadioButton("Secundario");
+		buttonGroup.add(this.rdbtnNewRadioButton_1);
+		this.rdbtnNewRadioButton_1.setBackground(new Color(195, 222, 214));
+		this.panel_22.add(this.rdbtnNewRadioButton_1);
 		
 		this.panel_7 = new JPanel();
 		this.panel_2.add(this.panel_7);
@@ -203,8 +230,25 @@ public class Inicio extends JFrame implements Ivista {
 	@Override
 	public void setActionListener(ActionListener actionListener) {
 		this.btnNewButton.addActionListener(actionListener);
+		this.rdbtnNewRadioButton.addActionListener(actionListener);
+		this.rdbtnNewRadioButton_1.addActionListener(actionListener);
 		this.actionListener=actionListener;
-		
 	}
+
+	
+	
+	public JRadioButton getRdbtnNewRadioButton() {
+		return rdbtnNewRadioButton;
+	}
+
+	public JRadioButton getRdbtnNewRadioButton_1() {
+		return rdbtnNewRadioButton_1;
+	}
+
+	public ButtonGroup getButtonGroup() {
+		return buttonGroup;
+	}
+	
+	
 
 }

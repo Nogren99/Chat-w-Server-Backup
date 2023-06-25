@@ -21,13 +21,11 @@ import modelo.ActualizarLista;
 import modelo.ClienteNoDisponible;
 import modelo.ConexionTerminada;
 import modelo.ConfirmacionSolicitud;
-import modelo.HeartBeat;
-import modelo.IdentificadorMonitor;
 import modelo.Mensaje;
 import modelo.MensajeCliente;
-import modelo.NotificacionCaida;
 import modelo.SolicitudMensaje;
 import modelo.Usuario;
+import negocio.Monitor;
 
 public class Servidor implements Runnable {
     private static Servidor instancia;
@@ -35,20 +33,22 @@ public class Servidor implements Runnable {
     
     private boolean secambio=false;
 
-    private Usuario user;
-    private boolean activo=true;
+    //private Usuario user;
     private ServerSocket socketServer;
     private Socket socket;
-    private Socket socketMonitor;
     private PrintWriter out;
     private BufferedReader in;
     private InputStreamReader inSocket;
     private ArrayList<Socket> sockets = new ArrayList<Socket>();
-    private ArrayList<Thread> threads = new ArrayList<Thread>();
     private HashMap<String, Integer> clientes; //Nombre / puerto
+    private Socket serverRedundante;
+    private ServerSocket socketServerSecundario;
+    private ServerSocket socketServerNuevosUsuarios;
+    private NotificadorCaida monitor;
+    private int puerto;
 
     private Servidor() {
-        user = Usuario.getInstance();
+        //user = Usuario.getInstance();
         clientes = new HashMap<>();
     }
 
@@ -70,20 +70,19 @@ public class Servidor implements Runnable {
     @Override
     public void run() {
             try {
-				this.socketServer = new ServerSocket(user.getPuerto());
-				System.out.println("Servidor iniciado. Puerto: " + user.getPuerto());
+            	if (this.socketServer==null)
+            		this.socketServer = new ServerSocket(puerto);
+				System.out.println("Servidor iniciado. Puerto: " + puerto);
 				controlador.getInstancia().ventanaEspera();
 				while (true) {
-					System.out.println("Esperando conexion");
 					socket = socketServer.accept();
-					System.out.println("Socket aceptado");
 					sockets.add(socket);
 					Thread clientThread = new Thread(new EscucharCliente(socket));
-					threads.add(clientThread);
 	                clientThread.start();
 				}
 			} catch (IOException e) {
-				System.out.println("Excepcion: "+ e.getMessage());
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
            
     }
@@ -98,18 +97,14 @@ public class Servidor implements Runnable {
         @Override
         public void run() {
             try {
-            	
-            	ObjectOutputStream flujoSalida = new ObjectOutputStream(cliente.getOutputStream());
-            	ObjectInputStream flujoEntrada = new ObjectInputStream(cliente.getInputStream());   
-            	
+            	ObjectInputStream flujoEntrada = new ObjectInputStream(cliente.getInputStream());
+        		ObjectOutputStream flujoSalida = new ObjectOutputStream(cliente.getOutputStream());
             	while (true) {	
             		
                     Object object = flujoEntrada.readObject();
-                    System.out.println("El servidor principal recibio un objeto");
                     
-                    if (object instanceof MensajeCliente) { 
+                    if (object instanceof MensajeCliente) {
                     	MensajeCliente datos = (MensajeCliente) object;
-                    	ServerRespaldo.getInstancia().addCliente(datos.getName(), datos.getPuerto());
                     	Servidor.getInstancia().addCliente(datos.getName(), datos.getPuerto());
 
 	                		for (int k=0; k < sockets.size() ; k++) { 			
@@ -213,13 +208,6 @@ public class Servidor implements Runnable {
                       	flujoSalida = new ObjectOutputStream(sockets.get(i).getOutputStream());
                         flujoSalida.writeObject(Servidor.getInstancia().getClientes());
                     	  
-                      }else if (object instanceof IdentificadorMonitor){
-                    	  socketMonitor = cliente;   
-                    	  flujoSalida = new ObjectOutputStream(socketMonitor.getOutputStream());
-                    	  flujoSalida.writeObject("basurita");
-                    	 // Monitor.getInstance().crearFlujoEntrada();
-                    	  Thread hilo = new Thread(new enviadorHeartBeats(socketMonitor));
-                    	  hilo.start();
                       } else {
                     	System.out.println(object.toString());
                     }
@@ -229,45 +217,58 @@ public class Servidor implements Runnable {
             }
             
         }
-
+    }
+    
+    public void setPuerto(int puerto) throws IOException {
+        this.puerto = puerto;
+        this.socketServer = new ServerSocket(puerto);
+        this.socketServerSecundario = new ServerSocket(puerto + 1);
+    }
+    
+    public void conectarConPrimario() throws IOException {
+        System.out.println("Esperando solicitud del servidor primario...");
+        //this.socketServerSecundario = new ServerSocket(3);
+        this.serverRedundante = this.socketServerSecundario.accept();
+        System.out.println("Conexion establecida con el servidor primario.");
+    }
+    
+    public void conectarConSecundario(String IP, int puertoSecundario) {
+        System.out.println("Enviando solicitud al servidor secundario...");
+        while (this.serverRedundante == null) {
+            try {
+                this.serverRedundante = new Socket(IP, puertoSecundario+1);//ANTES TENIA PUERTO+1
+                System.out.println("Conexion establecida con el servidor secundario.");
+            } catch (IOException e) {
+                System.out.println("No se pudo conectar con el servidor secundario. Reintentando en 5 segundos...");
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException interruptedException) {
+                    interruptedException.printStackTrace();
+                }
+            }
+        }
+    }
+    
+    public void conectarConMonitor() throws IOException {
+        System.out.println("Esperando conexion desde el monitor... puerto "+puerto);
+        //if (this.socketServer==null)
+        	//this.socketServer = new ServerSocket(user.getPuerto()); 
+        System.out.println("svsocket:"+socketServer+" espero en accept");
+        Socket socket = this.socketServer.accept();
+        System.out.println("ya acepte");
+        this.monitor = new NotificadorCaida(socket);
+        System.out.println("Conexion establecida con el monitor.");
+        this.monitor.start();
     }
                
-    
-    
-    private class enviadorHeartBeats implements Runnable{
-    	private Socket socketMonitor;
-    	
-    	private enviadorHeartBeats(Socket socket) {
-    		this.socketMonitor=socket;
-    		Monitor.getInstance().heartbeats();	
-    	}
-
-		public void run() {
-			int i=0;
-			while(true) {
-				try {
-					ObjectOutputStream flujo = new ObjectOutputStream(socketMonitor.getOutputStream());
-					flujo.writeObject(new HeartBeat());
-					Thread.sleep(3000);
-					System.out.println("TUC TUC "+ ++i);
-				} catch (IOException | InterruptedException e) {
-
-				}
-				
-			}
-			
-		}
-    	
-    	
-    }
 
     public static ControladorServidor getControlador() {
 		return controlador;
 	}
-
+/*
 	public Usuario getUser() {
 		return user;
-	}
+	}*/
 
 	public ServerSocket getSocketServer() {
 		return socketServer;

@@ -5,24 +5,18 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowListener;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
-
-import javax.swing.ButtonGroup;
-import javax.swing.ButtonModel;
 import javax.swing.JOptionPane;
-import javax.swing.JRadioButton;
 import javax.swing.JTextField;
 import modelo.Usuario;
-import negocio.Monitor;
-import negocio.ServerRespaldo;
+import negocio.Heartbeat;
 import negocio.Servidor;
 import vista.Ivista;
 import vista.SistemaDeMensajeria;
 import vista.Bienvenido;
 import vista.Chat;
 import vista.Inicio;
+import vista.InicioNuevo;
 import vista.SalaDeEspera;
 
 public class ControladorServidor implements ActionListener, Runnable {
@@ -30,8 +24,7 @@ public class ControladorServidor implements ActionListener, Runnable {
 	private Ivista vista;
     private static ControladorServidor instancia;
     private Thread comunicacion;
-    private Monitor monitor;
-    private boolean primario;
+    
 
     
     public static ControladorServidor getInstancia() {
@@ -41,7 +34,7 @@ public class ControladorServidor implements ActionListener, Runnable {
     }
 
 	public ControladorServidor() {
-        this.vista = new Inicio();
+        this.vista = new InicioNuevo();
         this.vista.setActionListener(this);
         this.vista.mostrar();
     }
@@ -63,68 +56,67 @@ public class ControladorServidor implements ActionListener, Runnable {
      *Se ingresa el puerto por pantalla y se toma el ip de quien lo inicia
      *Luego se inicia el hilo correspondiente al servidor
      */
-    @SuppressWarnings("deprecation")
-	@Override
+    @Override
     public void actionPerformed(ActionEvent e) {
         String comando = e.getActionCommand();
        
         if (comando.equalsIgnoreCase("Iniciar Sesión")) {
-        	this.monitor= Monitor.getInstance();
-        	Inicio ventana = (Inicio) this.vista;
+        	InicioNuevo ventana = (InicioNuevo) this.vista;
         	
         	//Ingreso datos del servidor
         	int puerto = Integer.parseInt( ventana.getTextField_1().getText() );
-        	Usuario.getInstance().setPuerto(puerto);
+        	//Usuario.getInstance().setPuerto(puerto);
         	try {
-        		Usuario.getInstance().setIp(InetAddress.getLocalHost().getHostAddress());
-			}catch (UnknownHostException e1) {
+        		//Usuario.getInstance().setIp(InetAddress.getLocalHost().getHostAddress());
+        		Servidor.getInstancia().setPuerto(puerto);
+        	}catch (IOException e1) {
 				e1.printStackTrace();
 			}
-        	System.out.println("Inicio en ip: "+ Usuario.getInstance().getIp() + "y en puerto: "+puerto);
+        	System.out.println("Inicio en ip: " + "y en puerto: "+puerto);
+        	
+        	
+        	if(ventana.getRdbtnNewRadioButton().isSelected()) {
+        		System.out.println("servidor 1");
+        		Heartbeat.getInstance().setIp("localhost");
+                Heartbeat.getInstance().setPuerto(3000);
+                Heartbeat.getInstance().start();
+                System.out.println("HB Funcionando");
+                Servidor.getInstancia().conectarConSecundario("localhost", 3); //ip y puerto del secundario
+                System.out.println("Mensaje desde controlador: Conexion establecida con el servidor secundario.");
+                //ControladorNuevosUsuarios.getInstance().start();
+        	}
+        	if(ventana.getRdbtnNewRadioButton_1().isSelected()) {
+        		System.out.println("sv2");
+        		try {
+					Servidor.getInstancia().conectarConPrimario();
+					System.out.println("Mensaje desde controlador: Conexion establecida con el servidor primario.");
+					Servidor.getInstancia().conectarConMonitor(); // pendiente, espero encontrar quien manda objeto NotificadorCaida
+					System.out.println("Mensaje desde controlador: Conexion establecida con el monitor.");
+        		} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+                
+                //ControladorNuevosUsuarios.getInstance().start();
+        	}
+        	
+        	/*
+        	 * futuro upgrade: reabrir sv1
+        	 * Servidor.getInstance().conectarConSecundario(ipSecundario, Integer.parseInt(puertoSecundario));
+                Servidor.getInstance().recibirUsuariosAResincronizar();
+        	 */
         	
         	//Inicio hilo para que el servidor empieze a escuchar clientes
-        	//ButtonGroup selectedGroup = ventana.getButtonGroup();
-        	//JRadioButton selectedButton = (JRadioButton) ventana.getButtonGroup().getSelection();
-        	if (ventana.getRdbtnNewRadioButton().isSelected()) {
-        		System.out.println("Creando server principal");
-        		primario=true;
-        		System.out.println("Primario: "+ primario);
-	            Thread hilo = new Thread(Servidor.getInstancia()); //server principal
-	            hilo.start();
-	            
-        	} else if (ventana.getRdbtnNewRadioButton_1().isSelected()) {
-        		primario=false;
-        		System.out.println("Creando server secundario");
-        		Thread hiloSecundario = new Thread(ServerRespaldo.getInstancia());
-        		hiloSecundario.start();
-        		
-        	} else {
-        		System.out.println("Validar ");
-        	}
+            Thread hilo = new Thread(Servidor.getInstancia());
+            hilo.start();
         	this.vista.cerrar();
         	
-        } else if (comando.equalsIgnoreCase("CerrarServer")) {
-        	Monitor.getInstance().respaldar();
-        	this.vista.cerrar();
-        }
-        	
-        	
-          	
-    } 
+        } 
+    }
     
     public void ventanaEspera() {
     	this.vista.cerrar();
-    	
     	this.setVista(new SalaDeEspera());
-    	SalaDeEspera vista = (SalaDeEspera) this.vista;
-    	
-    	System.out.println("Es el primario: "+ this.primario);
-    	if (!primario)
-    		vista.getLblNewLabel().setText("Secundario");
-    	else {
-    		monitor.conectarServer("localhost", 1);
-    		vista.getLblNewLabel().setText("Principal");
-    	}
     }
     
     public void ventanaChat() {
