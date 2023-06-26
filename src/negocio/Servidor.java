@@ -25,6 +25,8 @@ import modelo.Mensaje;
 import modelo.MensajeCliente;
 import modelo.SolicitudMensaje;
 import modelo.Usuario;
+import modelo.PeticionSincronizacion;
+import modelo. DatosSincronizacion;
 import negocio.Monitor;
 
 public class Servidor implements Runnable {
@@ -35,13 +37,13 @@ public class Servidor implements Runnable {
 
     //private Usuario user;
     private ServerSocket socketServer;
-    private Socket socket;
+    Socket socket;
     private PrintWriter out;
     private BufferedReader in;
     private InputStreamReader inSocket;
     private ArrayList<Socket> sockets = new ArrayList<Socket>();
     private HashMap<String, Integer> clientes; //Nombre / puerto
-    private Socket serverRedundante;
+    Socket serverRedundante;
     private ServerSocket socketServerSecundario;
     private ServerSocket socketServerNuevosUsuarios;
     private NotificadorCaida monitor;
@@ -208,7 +210,40 @@ public class Servidor implements Runnable {
                       	flujoSalida = new ObjectOutputStream(sockets.get(i).getOutputStream());
                         flujoSalida.writeObject(Servidor.getInstancia().getClientes());
                     	  
-                      } else {
+                        //PARA SERVIDOR DE RESPALDO
+                      } else if (object instanceof PeticionSincronizacion){
+                    	  
+                    	System.out.println("===Recibi peticion de sincronizacion ===");
+                    	
+                    	DatosSincronizacion datos = (DatosSincronizacion) new DatosSincronizacion();
+                    	
+                    	datos.setClientes(clientes);
+                    	
+                    	 //if (serverRedundante != null) {
+                             int puertoAux = serverRedundante.getPort() - 1;
+                               // Se pasa la info del server secundaria al usuario
+                         //}
+                      	
+                    	Socket temporal = new Socket ("localhost",puertoAux);
+                      	flujoSalida = new ObjectOutputStream(temporal.getOutputStream());
+                        flujoSalida.writeObject(datos);
+                    	  
+                      }else if (object instanceof DatosSincronizacion){
+                    	  
+                    	System.out.println("===Recibi los daots para sincronizarme :) ===");
+                    	
+                    	DatosSincronizacion datos = (DatosSincronizacion) object;
+                    	
+                    	clientes=datos.getClientes();
+                    	
+                    	System.out.println("recibi Todos los clientes satisfactoriamente!");
+                      	  
+                      	//flujoSalida = new ObjectOutputStream(serverRedundante.getOutputStream());
+                        //flujoSalida.writeObject(clientes);
+                    	  
+                      }
+                      
+                      else {
                     	System.out.println(object.toString());
                     }
             	}
@@ -237,6 +272,7 @@ public class Servidor implements Runnable {
         while (this.serverRedundante == null) {
             try {
                 this.serverRedundante = new Socket(IP, puertoSecundario+1);//ANTES TENIA PUERTO+1
+                
                 System.out.println("Conexion establecida con el servidor secundario.");
             } catch (IOException e) {
                 System.out.println("No se pudo conectar con el servidor secundario. Reintentando en 5 segundos...");
@@ -260,6 +296,24 @@ public class Servidor implements Runnable {
         System.out.println("Conexion establecida con el monitor.");
         this.monitor.start();
     }
+    
+	public void sincronizacionDeEstado() {
+		PeticionSincronizacion peti = (PeticionSincronizacion) new PeticionSincronizacion();
+		ObjectOutputStream pidoSincronizacion;
+		try {
+			socket = new Socket("localhost", 1);
+			pidoSincronizacion = new ObjectOutputStream(socket.getOutputStream());
+			pidoSincronizacion.writeObject(peti);
+			pidoSincronizacion.flush();
+			System.out.println("==Envie solicitud de sincronizacion");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+	}
+
                
 
     public static ControladorServidor getControlador() {
@@ -297,6 +351,7 @@ public class Servidor implements Runnable {
 	public void setSecambio(boolean secambio) {
 		this.secambio = secambio;
 	}
+
 
    
 }

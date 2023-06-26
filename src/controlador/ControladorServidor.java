@@ -92,7 +92,8 @@ public class ControladorServidor implements ActionListener, Runnable {
 					System.out.println("Mensaje desde controlador: Conexion establecida con el servidor primario.");
 					Servidor.getInstancia().conectarConMonitor(); // pendiente, espero encontrar quien manda objeto NotificadorCaida
 					System.out.println("Mensaje desde controlador: Conexion establecida con el monitor.");
-        		} catch (IOException e1) {
+					Servidor.getInstancia().sincronizacionDeEstado();
+        		 } catch (IOException e1) {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}

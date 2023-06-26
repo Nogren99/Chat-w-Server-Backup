@@ -28,9 +28,11 @@ public class NotificadorCaida extends Thread {
 
     @Override
     public void run() {
+    	System.out.println("NOTIFICADOR Servidor secundario activado");
+    	/*
         try {
             while (true) {
-                String mensaje = this.entrada.readLine();
+                //String mensaje = this.entrada.readLine();
                 
                 //ACTIVAR SECUNDARIO
                 
@@ -58,10 +60,10 @@ public class NotificadorCaida extends Thread {
                     for (Map.Entry<String, SocketUsuario> entry : Servidor.getInstance().getUsuarios().entrySet()) {
                         entry.getValue().reinicioPrimario();
                     }
-                }*/
+                }
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
-        }
+        }*/
     }
 }
