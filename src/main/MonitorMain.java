@@ -24,7 +24,8 @@ public class MonitorMain {
             System.out.println("Ingrese puerto del servidor secundario: ");
             puertoSecundario = sc.nextLine();
             */
-
+            System.out.println("monitor funcionando");
+            
             Monitor monitor = new Monitor(puertoMonitor); // puerto para el monitor
             monitor.conectarServerSecundario(ipSecundario, Integer.parseInt(puertoSecundario));
 

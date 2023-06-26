@@ -26,6 +26,7 @@ import modelo.MensajeCliente;
 import modelo.SolicitudMensaje;
 import modelo.Usuario;
 import modelo.PeticionSincronizacion;
+import modelo.ServidorCaido;
 import modelo. DatosSincronizacion;
 import negocio.Monitor;
 
@@ -79,6 +80,7 @@ public class Servidor implements Runnable {
 				while (true) {
 					socket = socketServer.accept();
 					sockets.add(socket);
+					
 					Thread clientThread = new Thread(new EscucharCliente(socket));
 	                clientThread.start();
 				}
@@ -101,7 +103,8 @@ public class Servidor implements Runnable {
             try {
             	ObjectInputStream flujoEntrada = new ObjectInputStream(cliente.getInputStream());
         		ObjectOutputStream flujoSalida = new ObjectOutputStream(cliente.getOutputStream());
-            	while (true) {	
+        		
+        		while (true) {	
             		
                     Object object = flujoEntrada.readObject();
                     
@@ -120,7 +123,20 @@ public class Servidor implements Runnable {
 		                        Map.Entry<String, Integer> entry = iterator.next();
 		                        String nombre = entry.getKey();
 		                        Integer puerto = entry.getValue();
-		                    }		
+		                    }	
+		                    
+		                    System.out.println("Recibi a un wacho "+ datos.getName());
+		                    
+		                    
+		                    
+		                  //ENVIO DATOS AL SERVIDOR SECUNDARIO SI ES QUE EXISTE
+		            		
+		            		if(serverRedundante!=null) {
+		            		  int puertoAux = serverRedundante.getPort() - 1;
+		       				  Socket temporal = new Socket ("localhost",puertoAux);
+		       				  flujoSalida = new ObjectOutputStream(temporal.getOutputStream());
+		       				  flujoSalida.writeObject(datos);
+		            		}
 	                	}
                 	
                       else if (object instanceof SolicitudMensaje) {
@@ -210,7 +226,9 @@ public class Servidor implements Runnable {
                       	flujoSalida = new ObjectOutputStream(sockets.get(i).getOutputStream());
                         flujoSalida.writeObject(Servidor.getInstancia().getClientes());
                     	  
-                        //PARA SERVIDOR DE RESPALDO
+                        
+                        //=============PARA SERVIDOR DE RESPALDO======================
+                        
                       } else if (object instanceof PeticionSincronizacion){
                     	  
                     	System.out.println("===Recibi peticion de sincronizacion ===");
@@ -219,10 +237,8 @@ public class Servidor implements Runnable {
                     	
                     	datos.setClientes(clientes);
                     	
-                    	 //if (serverRedundante != null) {
-                             int puertoAux = serverRedundante.getPort() - 1;
-                               // Se pasa la info del server secundaria al usuario
-                         //}
+
+                        int puertoAux = serverRedundante.getPort() - 1;
                       	
                     	Socket temporal = new Socket ("localhost",puertoAux);
                       	flujoSalida = new ObjectOutputStream(temporal.getOutputStream());
@@ -231,17 +247,31 @@ public class Servidor implements Runnable {
                       }else if (object instanceof DatosSincronizacion){
                     	  
                     	System.out.println("===Recibi los daots para sincronizarme :) ===");
-                    	
                     	DatosSincronizacion datos = (DatosSincronizacion) object;
-                    	
                     	clientes=datos.getClientes();
-                    	
                     	System.out.println("recibi Todos los clientes satisfactoriamente!");
-                      	  
-                      	//flujoSalida = new ObjectOutputStream(serverRedundante.getOutputStream());
-                        //flujoSalida.writeObject(clientes);
                     	  
-                      }
+                      }else if (object instanceof ServidorCaido){
+                    	  
+                    	  
+                    	  System.out.println("apa la papa se cayo el sv");
+                    	  
+                    	  
+                    	  for (Map.Entry<String, Integer> entry : clientes.entrySet()) {
+                              String cliente = entry.getKey();
+                              int puerto = entry.getValue();
+
+                              try {
+                                  Socket socket = new Socket("localhost", puerto);
+                                  sockets.add(socket);
+                              } catch (IOException e) {
+                                  // Manejar cualquier excepción de conexión aquí
+                                  e.printStackTrace();
+                              }
+                          }
+                    	  
+                      	  
+                        }
                       
                       else {
                     	System.out.println(object.toString());

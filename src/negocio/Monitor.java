@@ -2,30 +2,34 @@ package negocio;
 
 
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import modelo.ServidorCaido;
+
 public class Monitor {
     private boolean primarioVivo;
     private int puerto;
     private Timer heartbeatTimer;
-    private Socket serverSecundario;
+    Socket serverSecundario;
+    ObjectOutputStream flujoSalida;
 
     public Monitor(int puerto) {
         this.primarioVivo = true;
         this.heartbeatTimer = new Timer();
         this.puerto = puerto;
-        this.serverSecundario = null;
+        serverSecundario = null;
     }
 
     public void conectarServerSecundario(String ip, int puerto) {
-        while (this.serverSecundario == null) {
+        while (serverSecundario == null) {
             try {
                 Thread.sleep(1000);
-                this.serverSecundario = new Socket(ip, puerto);
+                serverSecundario = new Socket(ip, puerto);
                 System.out.println("Conexion establecida con el servidor secundario.");
             } catch (IOException e) {
                 System.out.println("No se pudo conectar con el servidor secundario...");
@@ -36,6 +40,7 @@ public class Monitor {
     }
 
     public void empezarMonitoreo() throws IOException {
+    	
         ServerSocket conexionPrimario = new ServerSocket(this.puerto);
         while (primarioVivo) {
             this.heartbeatTimer.schedule(new HeartbeatTask(), 3000);
@@ -43,13 +48,14 @@ public class Monitor {
             conexionPrimario.accept();
             this.recibirHeartbeat();
         }
+        /*
         System.out.println("Primario no vivo");
         conexionPrimario.accept();
         primarioVivo = true;
         PrintWriter salida = new PrintWriter(this.serverSecundario.getOutputStream(), true);
         salida.println("reiniciar primario");
         conexionPrimario.close();
-        this.empezarMonitoreo();
+        this.empezarMonitoreo();*/
     }
 
     public void recibirHeartbeat() {
@@ -62,8 +68,11 @@ public class Monitor {
         System.out.println("No se recibio latido del servidor primario en los ultimos 3 segs.");
         System.out.println("Activando servidor secundario...");
         try {
-            PrintWriter salida = new PrintWriter(this.serverSecundario.getOutputStream(), true);
-            salida.println("activar secundario");
+        	ServidorCaido server = (ServidorCaido) new ServidorCaido();
+        	Socket tempo = new Socket("localhost",3);
+        	flujoSalida = new ObjectOutputStream(tempo.getOutputStream());
+        	flujoSalida.writeObject(server);
+        	System.out.println("envie aviso al sv2");
         } catch (IOException e) {
             System.out.println("No se pudo activar el servidor secundario.");
         }
