@@ -112,7 +112,12 @@ public class ControladorServidor implements ActionListener, Runnable {
             hilo.start();
         	this.vista.cerrar();
         	
-        } 
+        }else if (comando.equalsIgnoreCase("Cerrar Servidor")) {
+        	System.out.println("CHAU SESION");
+        	
+        	Servidor.getInstancia().cerrarServidor();
+        	 Heartbeat.getInstance().interrupt();
+        }
     }
     
     public void ventanaEspera() {

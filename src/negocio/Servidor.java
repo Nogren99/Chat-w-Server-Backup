@@ -125,7 +125,7 @@ public class Servidor implements Runnable {
 		                        Integer puerto = entry.getValue();
 		                    }	
 		                    
-		                    System.out.println("Recibi a un wacho "+ datos.getName());
+		                    System.out.println("Nuevo cliente recibido! "+ datos.getName());
 		                    
 		                    
 		                    
@@ -254,21 +254,31 @@ public class Servidor implements Runnable {
                       }else if (object instanceof ServidorCaido){
                     	  
                     	  
-                    	  System.out.println("apa la papa se cayo el sv");
+                    	  System.out.println("Servidor principal caido , se procede a hacer las conexiones con los clientes:");
+                    	  /*
+                    	  ArrayList<Socket> socketsAUX = new ArrayList<Socket>();
+                    	  HashMap<String, Integer> clientesAUX; //Nombre / puerto
                     	  
                     	  
                     	  for (Map.Entry<String, Integer> entry : clientes.entrySet()) {
-                              String cliente = entry.getKey();
-                              int puerto = entry.getValue();
+                    		String cliente = entry.getKey();
+                    		Integer valor = entry.getValue();
+                    		    
+                    		socket = socketServer.accept();
+          					sockets.add(socket);
+          					System.out.println("aniadi a "+ cliente+ " con ip "+valor);
+          					
+          					Thread clientThread = new Thread(new EscucharCliente(socket));
+          	                clientThread.start();
 
-                              try {
-                                  Socket socket = new Socket("localhost", puerto);
-                                  sockets.add(socket);
-                              } catch (IOException e) {
-                                  // Manejar cualquier excepción de conexión aquí
-                                  e.printStackTrace();
-                              }
                           }
+                    	  
+                    	  
+                    	  int cantidadClientes = clientes.size();*/
+                    	  
+                    	  
+                    	  sockets.clear();
+                    	  clientes.clear();
                     	  
                       	  
                         }
@@ -342,6 +352,59 @@ public class Servidor implements Runnable {
 		}
 		
 		
+	}
+	
+	public void cerrarServidor() {
+		//ArrayList<Socket> sockets = new ArrayList<>();
+		// Agrega sockets al ArrayList sockets
+
+		for (Socket socket : sockets) {
+		    try {
+		    	System.out.println(socket);
+		    	ServidorCaido server = (ServidorCaido) new ServidorCaido();
+		        ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
+		        // Usa el ObjectOutputStream según tus necesidades
+		        
+		        // Envía objetos a través del ObjectOutputStream
+		        outputStream.writeObject(server);
+		        outputStream.flush();
+		        
+		        // Cierra el ObjectOutputStream cuando hayas terminado
+		        outputStream.close();
+		        
+		        
+		        
+		    } catch (IOException e) {
+		        // Maneja la excepción de E/S si ocurre algún error al enviar el ObjectOutputStream
+		        e.printStackTrace();
+		    }
+		}
+        
+            try {
+            	for (Socket socket : sockets) {
+            		socket.close();
+            	}
+            	// Cerrar el ServerSocket principal
+                if (socketServer != null) {
+                    socketServer.close();
+                }
+                
+                // Cerrar el ServerSocket secundario
+                if (socketServerSecundario != null) {
+                    socketServerSecundario.close();
+                }
+                
+                // Cerrar el ServerSocket para nuevos usuarios
+                if (socketServerNuevosUsuarios != null) {
+                    socketServerNuevosUsuarios.close();
+                }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        
+        
+        
 	}
 
                

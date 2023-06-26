@@ -13,6 +13,8 @@ import java.awt.event.ActionListener;
 import java.awt.CardLayout;
 import java.awt.Font;
 import java.awt.Color;
+import javax.swing.JButton;
+import java.awt.event.ActionEvent;
 
 public class SalaDeEspera extends JFrame implements Ivista {
 
@@ -26,6 +28,8 @@ public class SalaDeEspera extends JFrame implements Ivista {
 	private JLabel lblNewLabel;
 	private JLabel lblNewLabel_1;
 	private JPanel panel_6;
+	private JButton btnNewButton;
+	private ActionListener actionListener;
 
 	/**
 	 * Launch the application.
@@ -89,6 +93,13 @@ public class SalaDeEspera extends JFrame implements Ivista {
 		this.panel_5.setBackground(new Color(195, 222, 214));
 		this.panel_1.add(this.panel_5);
 		
+		btnNewButton = new JButton("Cerrar Servidor");
+		btnNewButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+			}
+		});
+		panel_5.add(btnNewButton);
+		
 		this.panel_2 = new JPanel();
 		this.panel_2.setBackground(new Color(195, 222, 214));
 		this.contentPane.add(this.panel_2);
@@ -108,7 +119,8 @@ public class SalaDeEspera extends JFrame implements Ivista {
 
 	@Override
 	public void setActionListener(ActionListener actionListener) {
-		// TODO Auto-generated method stub
+		this.btnNewButton.addActionListener(actionListener);
+		this.actionListener=actionListener;
 		
 	}
 

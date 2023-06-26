@@ -6,7 +6,9 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -20,6 +22,7 @@ import modelo.ConexionTerminada;
 import modelo.ConfirmacionSolicitud;
 import modelo.Mensaje;
 import modelo.MensajeCliente;
+import modelo.ServidorCaido;
 import modelo.SolicitudMensaje;
 import modelo.Usuario;
 
@@ -37,6 +40,8 @@ public class Cliente implements Runnable{
     ObjectOutputStream paqueteDatos;
     private boolean aceptada = false;
     private boolean estoyEnLlamada=false;
+    private boolean banderaSistemaCaido=false;
+    private volatile boolean detener=false;
     
 	public static Cliente getInstancia() {
 		if (instancia == null)
@@ -115,10 +120,19 @@ public class Cliente implements Runnable{
     public Socket getSocket() {
 		return socket;
 	}
+    
+    public void detenerHilo() {
+        detener = true;
+    }
+    public void arrancarHilo() {
+        detener = false;
+    }
 
 	public void run() {
         try {
-        	while (true) {
+        	while (!detener) {
+        		
+        		System.out.println("servidor actual :  "+socket);
         		
         		ObjectInputStream hashMapInputStream = new ObjectInputStream(this.socket.getInputStream());
         		Object object =   hashMapInputStream.readObject();
@@ -172,23 +186,52 @@ public class Cliente implements Runnable{
         		} else if (object instanceof ConexionTerminada){
         			this.estoyEnLlamada=false;
         			ControladorCliente.getInstancia().abrirVentanaEspera();       			
-        		} else {
+        		} else if (object instanceof ServidorCaido){
+        			Thread.sleep(6000);
+        			detenerHilo();
+        			reconectarASecundario()  ;
+        			
+        			break;
+        			    			
+        		}else {
         			System.out.println(object.toString());
         		}
         		
             }
             
-        } catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
+        } catch (Exception e) {
+			
 			e.printStackTrace();
 		} finally {} 
     }
+	
+	public void reconectarASecundario() {
+		try {
+			
+			this.socket.close();
+			this.socket = new Socket("localhost", 3);
+			paqueteDatos = new ObjectOutputStream(this.socket.getOutputStream());
+            MensajeCliente datos = new MensajeCliente();
+            datos.setIp(Usuario.getInstance().getIp());
+            datos.setMsj(null);
+            datos.setPuerto(socket.getLocalPort());
+            datos.setName(Usuario.getInstance().getNombre());
+            paqueteDatos.writeObject(datos);
+            paqueteDatos.flush();
+            
+            //System.out.println("Mis datos : Nombre: "+Usuario.getInstance().getNombre()+" socket: "+socket + "histo: "+host+" puerot "+puerto);
+            this.flujoEntrada = new ObjectInputStream(this.socket.getInputStream());
+            System.out.println("me reconecte a sv secundario "+socket);
+            
+            ControladorCliente.getInstancia().reconexion();
+		} catch (IOException  e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+	}
 
 	public void solicitudChat(String nombre, String nombrePropio) { 
 		try {

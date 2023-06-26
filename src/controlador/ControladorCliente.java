@@ -36,6 +36,7 @@ public class ControladorCliente implements ActionListener {
 	private Thread comunicacion;
 	private String nombreDestinatario;
 	private String nombreSolicitante;
+	Thread hilo;
 
 	public static ControladorCliente getInstancia() {
 		if (instancia == null)
@@ -144,7 +145,13 @@ public class ControladorCliente implements ActionListener {
 	public void ventanaEspera() {
 		this.vista.cerrar();
 		this.setVista(new SalaDeEsperaCliente());
-		Thread hilo = new Thread(Cliente.getInstancia());
+		hilo = new Thread(Cliente.getInstancia());
+		hilo.start();
+	}
+	
+	public void reconexion() {
+		Cliente.getInstancia().arrancarHilo();
+		hilo = new Thread(Cliente.getInstancia());
 		hilo.start();
 	}
 
